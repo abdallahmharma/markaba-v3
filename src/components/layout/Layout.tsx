@@ -1,6 +1,4 @@
-import type { ReactNode } from 'react';
-import Header from './Header';
-import Footer from './Footer';
+import type { ReactNode } from "react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -8,10 +6,20 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div>
       <Header />
-      <main style={{ flex: 1 }}>{children}</main>
+      <main>
+        {children}
+      </main>
       <Footer />
     </div>
   );
+}
+
+function Header() {
+  return <header>Header</header>;
+}
+
+function Footer() {
+  return <footer>Footer</footer>;
 }
