@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout";
 import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import ManufacturersPage from "../pages/ManufacturersPage";
 
 export const router = createBrowserRouter([
   {
@@ -21,5 +22,9 @@ export const router = createBrowserRouter([
   {
     path: "/forgot-password",
     element: <ForgotPasswordPage />,
+  },
+  {
+    path: "/manufacturers",
+    element: <Layout><ManufacturersPage /></Layout>,
   },
 ]);
