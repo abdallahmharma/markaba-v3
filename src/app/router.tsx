@@ -5,6 +5,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import ManufacturersPage from "../pages/ManufacturersPage";
+import ManufacturersAdminPage from "../pages/admin/ManufacturersAdminPage";
 
 export const router = createBrowserRouter([
   {
@@ -26,5 +27,9 @@ export const router = createBrowserRouter([
   {
     path: "/manufacturers",
     element: <Layout><ManufacturersPage /></Layout>,
+  },
+  {
+    path: "/admin/manufacturers",
+    element: <ManufacturersAdminPage />,
   },
 ]);
