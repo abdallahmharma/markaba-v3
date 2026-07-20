@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ThemeProvider } from "../context/ThemeContext";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function AppProviders({
   children,
@@ -8,7 +9,9 @@ export default function AppProviders({
 }) {
   return (
     <ThemeProvider>
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </ThemeProvider>
   );
 }

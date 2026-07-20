@@ -2,6 +2,9 @@ interface SpinnerProps {
   size?: "sm" | "md" | "lg";
 }
 
-export function Spinner(_props?: SpinnerProps) {
-  return <div>Loading...</div>;
+export function Spinner({ size = "md" }: SpinnerProps) {
+  void size;
+  return (
+    <div>Loading...</div>
+  );
 }
