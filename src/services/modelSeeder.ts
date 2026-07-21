@@ -1,67 +1,81 @@
+/**
+ * Model Seeder - Sprint B1
+ * Seeds Toyota models into Firestore (idempotent).
+ */
+
 import { db } from "../firebase";
-import { addDoc, collection, doc, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { createModel } from "./model.service";
 
-interface ModelData {
-  id: string;
-  manufacturerSlug: string;
-  name: string;
-  slug: string;
-  active: boolean;
-  createdAt: Date;
-}
+const TOYOTA_SLUG = "toyota";
 
-const toyotaModels: ModelData[] = [
-  { id: "corolla", manufacturerSlug: "toyota", name: "Corolla", slug: "corolla", active: true, createdAt: new Date() },
-  { id: "camry", manufacturerSlug: "toyota", name: "Camry", slug: "camry", active: true, createdAt: new Date() },
-  { id: "yaris", manufacturerSlug: "toyota", name: "Yaris", slug: "yaris", active: true, createdAt: new Date() },
-  { id: "avalon", manufacturerSlug: "toyota", name: "Avalon", slug: "avalon", active: true, createdAt: new Date() },
-  { id: "crown", manufacturerSlug: "toyota", name: "Crown", slug: "crown", active: true, createdAt: new Date() },
-  { id: "prius", manufacturerSlug: "toyota", name: "Prius", slug: "prius", active: true, createdAt: new Date() },
-  { id: "rav4", manufacturerSlug: "toyota", name: "RAV4", slug: "rav4", active: true, createdAt: new Date() },
-  { id: "highlander", manufacturerSlug: "toyota", name: "Highlander", slug: "highlander", active: true, createdAt: new Date() },
-  { id: "land-cruiser", manufacturerSlug: "toyota", name: "Land Cruiser", slug: "land-cruiser", active: true, createdAt: new Date() },
-  { id: "land-cruiser-prado", manufacturerSlug: "toyota", name: "Land Cruiser Prado", slug: "land-cruiser-prado", active: true, createdAt: new Date() },
-  { id: "fortuner", manufacturerSlug: "toyota", name: "Fortuner", slug: "fortuner", active: true, createdAt: new Date() },
-  { id: "hilux", manufacturerSlug: "toyota", name: "Hilux", slug: "hilux", active: true, createdAt: new Date() },
-  { id: "tacoma", manufacturerSlug: "toyota", name: "Tacoma", slug: "tacoma", active: true, createdAt: new Date() },
-  { id: "sequoia", manufacturerSlug: "toyota", name: "Sequoia", slug: "sequoia", active: true, createdAt: new Date() },
-  { id: "4runner", manufacturerSlug: "toyota", name: "4Runner", slug: "4runner", active: true, createdAt: new Date() },
-  { id: "c-hr", manufacturerSlug: "toyota", name: "C-HR", slug: "c-hr", active: true, createdAt: new Date() },
-  { id: "raize", manufacturerSlug: "toyota", name: "Raize", slug: "raize", active: true, createdAt: new Date() },
-  { id: "urban-jumper", manufacturerSlug: "toyota", name: "Urban Cruiser", slug: "urban-jumper", active: true, createdAt: new Date() },
-  { id: "supra", manufacturerSlug: "toyota", name: "Supra", slug: "supra", active: true, createdAt: new Date() },
-  { id: "gr86", manufacturerSlug: "toyota", name: "GR86", slug: "gr86", active: true, createdAt: new Date() },
-  { id: "gr-yaris", manufacturerSlug: "toyota", name: "GR Yaris", slug: "gr-yaris", active: true, createdAt: new Date() },
-  { id: "gr-corolla", manufacturerSlug: "toyota", name: "GR Corolla", slug: "gr-corolla", active: true, createdAt: new Date() },
-  { id: "sienna", manufacturerSlug: "toyota", name: "Sienna", slug: "sienna", active: true, createdAt: new Date() },
-  { id: "veloz", manufacturerSlug: "toyota", name: "Veloz", slug: "veloz", active: true, createdAt: new Date() },
-  { id: "rush", manufacturerSlug: "toyota", name: "Rush", slug: "rush", active: true, createdAt: new Date() },
-  { id: "avanza", manufacturerSlug: "toyota", name: "Avanza", slug: "avanza", active: true, createdAt: new Date() },
+interface SeedModel { name: string; active: boolean }
+
+const TOYOTA_MODELS: SeedModel[] = [
+  { name: "4Runner", active: true },
+  { name: "86", active: true },
+  { name: "Avalon", active: true },
+  { name: "C-HR", active: true },
+  { name: "Camry", active: true },
+  { name: "Corolla", active: true },
+  { name: "Corolla Cross", active: true },
+  { name: "Corolla Hatchback", active: true },
+  { name: "GR86", active: true },
+  { name: "GR Corolla", active: true },
+  { name: "GR Supra", active: true },
+  { name: "GR Yaris", active: true },
+  { name: "Highlander", active: true },
+  { name: "Land Cruiser", active: true },
+  { name: "Mirai", active: true },
+  { name: "Prius", active: true },
+  { name: "Prius Prime", active: true },
+  { name: "RAV4", active: true },
+  { name: "RAV4 Prime", active: true },
+  { name: "Sequoia", active: true },
+  { name: "Sienna", active: true },
+  { name: "Tacoma", active: true },
+  { name: "Tundra", active: true },
+  { name: "Venza", active: true },
+  { name: "Yaris", active: true },
+  { name: "bZ4X", active: true },
 ];
 
-async function seedToyotaModels() {
-  const modelsRef = collection(db, "models");
-  const q = query(modelsRef, where("manufacturerSlug", "==", "toyota"), limit(1));
-  const snapshot = await getDocs(q);
+interface ManufacturerRef { id: string; slug: string }
 
-  if (!snapshot.empty) {
-    console.log("Toyota models already exist. Skipping seed.");
+async function getManufacturers(): Promise<ManufacturerRef[]> {
+  const snapshot = await getDocs(query(collection(db, "manufacturers"), orderBy("name", "asc")));
+  return snapshot.docs.map((d) => ({ id: d.id, slug: (d.data().slug as string) || d.id }));
+}
+
+async function clearToyotaModels(toyotaId: string): Promise<void> {
+  const snapshot = await getDocs(query(collection(db, "models"), where("manufacturerId", "==", toyotaId)));
+  const promises: Promise<void>[] = [];
+  for (const document of snapshot.docs) {
+    promises.push(deleteDoc(doc(db, "models", document.id)));
+  }
+  await Promise.all(promises);
+  console.log(`Cleared ${promises.length} Toyota models.`);
+}
+
+/** Seed Toyota models into Firestore (idempotent). */
+export async function seedToyotaModels(): Promise<void> {
+  console.log("Seeding Toyota models...");
+  const manufacturers = await getManufacturers();
+  const toyota = manufacturers.find((m) => m.slug === TOYOTA_SLUG);
+  if (!toyota) {
+    console.error("Toyota manufacturer not found. Run seedManufacturers.ts first.");
     return;
   }
 
-  for (const model of toyotaModels) {
-    await addDoc(modelsRef, {
-      id: model.id,
-      manufacturerSlug: model.manufacturerSlug,
-      name: model.name,
-      slug: model.slug,
-      active: model.active,
-      createdAt: model.createdAt,
-    });
-    console.log(`Added model: ${model.name}`);
+  await clearToyotaModels(toyota.id);
+
+  let created = 0;
+  for (const model of TOYOTA_MODELS) {
+    await createModel({ manufacturerId: toyota.id, name: model.name, slug: model.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, ""), active: model.active });
+    created++;
   }
 
-  console.log(`Seeded ${toyotaModels.length} Toyota models.`);
+  console.log(`Seeded ${created} Toyota models.`);
 }
 
-seedToyotaModels();
+seedToyotaModels().catch(console.error);
