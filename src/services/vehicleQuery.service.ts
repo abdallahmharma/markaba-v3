@@ -12,42 +12,20 @@
  * It is a read-only aggregation layer.
  */
 
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+
 
 import {
-  fetchManufacturers,
-  fetchModels as fetchModelsList,
-  getModelByManufacturer,
-} from "./manufacturer.service";
-
-import { fetchModels } from "./model.service";
-
-import {
-  fetchVehicleGenerations as fetchGenerationsList,
-  getGenerationById,
-} from "./vehicleGeneration.service";
-
-import {
-  fetchVehicleTrims as fetchTrimsList,
-  getTrimById,
-} from "./vehicleTrim.service";
-
-import {
-  fetchVehicles,
+  getVehicles,
   getVehicleById,
 } from "./vehicle.service";
 
-import { Vehicle } from "@/types/vehicle";
-
-// ---------------------------------------------------------------------------
-// Type aliases for clarity
-// ---------------------------------------------------------------------------
-
-type Manufacturer = ReturnType<typeof fetchManufacturers extends Promise<infer T> ? T : never>[number];
-type Model = ReturnType<typeof fetchModels extends Promise<infer T> ? T : never>[number];
-type VehicleGeneration = ReturnType<typeof fetchGenerationsList extends Promise<infer T> ? T : never>[number];
-type VehicleTrim = ReturnType<typeof fetchTrimsList extends Promise<infer T> ? T : never>[number];
+import type { Vehicle } from "../types/vehicle";
+import type { Manufacturer } from "../types/manufacturer";
+import type { Model } from "../types/model";
+import type { GenerationData as VehicleGeneration } from "../types/vehicleGeneration";
+import type { VehicleTrim } from "../types/vehicleTrim";
 
 // ---------------------------------------------------------------------------
 // Helper: resolve document ID (string | Firestore DocumentReference)
@@ -82,18 +60,18 @@ export async function getVehicleHierarchy(vehicleId: string) {
     return null;
   }
 
-  // Resolve navigation IDs from the vehicle document
-  const manufacturerId = resolveDocId((vehicle as Record<string, unknown>).manufacturerId ?? (vehicle as any).manufacturerId);
-  const modelId = resolveDocId((vehicle as Record<string, unknown>).modelId ?? (vehicle as any).modelId);
-  const generationId = resolveDocId((vehicle as Record<string, unknown>).generationId ?? (vehicle as any).generationId);
-  const trimId = resolveDocId((vehicle as Record<string, unknown>).trimId ?? (vehicle as any).trimId);
+  // Navigation IDs are directly on the Vehicle interface
+  const manufacturerId = resolveDocId(vehicle.manufacturerId ?? (vehicle as unknown as Record<string, unknown>).manufacturerId);
+  const modelId = resolveDocId(vehicle.modelId ?? (vehicle as unknown as Record<string, unknown>).modelId);
+  const generationId = resolveDocId(vehicle.generationId ?? (vehicle as unknown as Record<string, unknown>).generationId);
+  const trimId = resolveDocId(vehicle.trimId ?? (vehicle as unknown as Record<string, unknown>).trimId);
 
   // Fetch parent documents in parallel (only when IDs exist)
   const [manufacturerSnap, modelSnap, generationSnap, trimSnap] = await Promise.all([
-    manufacturerId ? getDoc(doc(db, "manufacturers", manufacturerId)).catch(() => null as any) : null,
-    modelId ? getDoc(doc(db, "models", modelId)).catch(() => null as any) : null,
-    generationId ? getDoc(doc(db, "vehicleGenerations", generationId)).catch(() => null as any) : null,
-    trimId ? getDoc(doc(db, "vehicleTrims", trimId)).catch(() => null as any) : null,
+    manufacturerId ? getDoc(doc(db, "manufacturers", manufacturerId)).catch(() => null as unknown as ReturnType<typeof getDoc>) : null,
+    modelId ? getDoc(doc(db, "models", modelId)).catch(() => null as unknown as ReturnType<typeof getDoc>) : null,
+    generationId ? getDoc(doc(db, "vehicleGenerations", generationId)).catch(() => null as unknown as ReturnType<typeof getDoc>) : null,
+    trimId ? getDoc(doc(db, "vehicleTrims", trimId)).catch(() => null as unknown as ReturnType<typeof getDoc>) : null,
   ]);
 
   return {
@@ -127,14 +105,14 @@ export async function getVehicleFullName(vehicleId: string): Promise<string> {
     parts.push(hierarchy.model.name);
   }
 
-  // Year from vehicle data or generation
-  const year = (hierarchy.vehicle as Record<string, unknown>).year ?? (hierarchy.vehicle as any).year;
-  if (year) {
-    parts.push(String(year));
+  // Year from vehicle.modelYear
+  const modelYear = hierarchy.vehicle.modelYear;
+  if (modelYear) {
+    parts.push(String(modelYear));
   }
 
-  if (hierarchy.trim?.name) {
-    parts.push(hierarchy.trim.name);
+  if (hierarchy.trim?.trimName) {
+    parts.push(hierarchy.trim.trimName);
   }
 
   return parts.join(" ");
@@ -145,10 +123,10 @@ export async function getVehicleFullName(vehicleId: string): Promise<string> {
 // ---------------------------------------------------------------------------
 
 export async function getVehiclesForModel(modelId: string): Promise<Vehicle[]> {
-  const allVehicles = await fetchVehicles();
-  return allVehicles.filter((v) => {
-    const mid = resolveDocId((v as Record<string, unknown>).modelId ?? (v as any).modelId);
-    return mid === modelId;
+  const allVehicles = await getVehicles();
+  return allVehicles.filter((v: Vehicle): boolean => {
+    const vModelId = (v.modelId as unknown as string) ?? resolveDocId(v.modelId);
+    return vModelId === modelId;
   });
 }
 
@@ -157,10 +135,10 @@ export async function getVehiclesForModel(modelId: string): Promise<Vehicle[]> {
 // ---------------------------------------------------------------------------
 
 export async function getVehiclesForGeneration(generationId: string): Promise<Vehicle[]> {
-  const allVehicles = await fetchVehicles();
-  return allVehicles.filter((v) => {
-    const gid = resolveDocId((v as Record<string, unknown>).generationId ?? (v as any).generationId);
-    return gid === generationId;
+  const allVehicles = await getVehicles();
+  return allVehicles.filter((v: Vehicle): boolean => {
+    const vGenerationId = (v.generationId as unknown as string) ?? resolveDocId(v.generationId);
+    return vGenerationId === generationId;
   });
 }
 
@@ -169,9 +147,9 @@ export async function getVehiclesForGeneration(generationId: string): Promise<Ve
 // ---------------------------------------------------------------------------
 
 export async function getVehiclesForTrim(trimId: string): Promise<Vehicle[]> {
-  const allVehicles = await fetchVehicles();
-  return allVehicles.filter((v) => {
-    const tid = resolveDocId((v as Record<string, unknown>).trimId ?? (v as any).trimId);
-    return tid === trimId;
+  const allVehicles = await getVehicles();
+  return allVehicles.filter((v: Vehicle): boolean => {
+    const vTrimId = (v.trimId as unknown as string) ?? resolveDocId(v.trimId);
+    return vTrimId === trimId;
   });
 }
